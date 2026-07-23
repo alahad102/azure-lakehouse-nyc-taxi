@@ -1,0 +1,24 @@
+# Data files - never commit raw data
+data/
+*.parquet
+*.csv
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets - never commit credentials
+.env
+*.key
+local.settings.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
