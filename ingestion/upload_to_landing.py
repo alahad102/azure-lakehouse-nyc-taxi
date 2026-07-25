@@ -6,7 +6,7 @@ from azure.storage.filedatalake import DataLakeServiceClient
 credential = DefaultAzureCredential()
 
 # Step 2: connect to the storage account
-account_url = "https://stlakehousenyctx.dfs.core.windows.net"
+account_url = "https://stlakehousenyctx2.dfs.core.windows.net"
 service_client = DataLakeServiceClient(account_url=account_url, credential=credential)
 
 # Step 3: get a handle on the "landing" container
