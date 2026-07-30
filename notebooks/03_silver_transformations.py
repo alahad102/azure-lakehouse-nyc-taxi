@@ -218,3 +218,38 @@ print("written")
 # MAGIC        ROUND(AVG(trip_distance), 2) AS avg_miles
 # MAGIC FROM nyctaxi.silver.silver_trips
 # MAGIC GROUP BY service_type;
+
+# COMMAND ----------
+
+from pyspark.sql import functions as F
+
+silver = spark.table("nyctaxi.silver.silver_trips")
+quar   = spark.table("nyctaxi.silver.silver_trips_quarantine")
+
+clean_by_source = silver.groupBy("service_type").agg(
+    F.count("*").alias("rows_clean"),
+    F.sum(F.col("passenger_count_missing").cast("int")).alias("passenger_count_missing"),
+    F.sum(F.col("is_reversal").cast("int")).alias("reversal_rows"))
+
+quar_by_reason = quar.groupBy("service_type", "_quarantine_reason").agg(
+    F.count("*").alias("rows_quarantined"))
+
+metrics = (clean_by_source.join(
+        quar_by_reason.groupBy("service_type")
+                      .agg(F.sum("rows_quarantined").alias("rows_quarantined")),
+        on="service_type", how="outer")
+    .withColumn("rows_total", F.col("rows_clean") + F.col("rows_quarantined"))
+    .withColumn("quarantine_pct",
+                F.round(F.col("rows_quarantined") / F.col("rows_total") * 100, 3))
+    .withColumn("measured_at", F.current_timestamp()))
+
+metrics.write.format("delta").mode("overwrite") \
+    .option("overwriteSchema", "true") \
+    .saveAsTable("nyctaxi.silver.silver_quality_metrics")
+
+quar_by_reason.withColumn("measured_at", F.current_timestamp()) \
+    .write.format("delta").mode("overwrite") \
+    .option("overwriteSchema", "true") \
+    .saveAsTable("nyctaxi.silver.silver_quality_by_reason")
+
+metrics.show(truncate=False)
