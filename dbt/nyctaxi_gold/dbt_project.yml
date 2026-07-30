@@ -1,0 +1,19 @@
+name: 'nyctaxi_gold'
+version: '1.0.0'
+profile: 'nyctaxi_gold'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+seed-paths: ["seeds"]
+analysis-paths: ["analyses"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  nyctaxi_gold:
+    +materialized: table
+    +file_format: delta

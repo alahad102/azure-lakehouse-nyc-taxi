@@ -86,3 +86,27 @@ print("Green ingestion complete.")
 
 # MAGIC %sql
 # MAGIC DESCRIBE nyctaxi.bronze.bronze_green_trips;
+
+# COMMAND ----------
+
+from pyspark.sql import functions as F
+
+zones = (spark.read
+    .option("header", "true")
+    .option("inferSchema", "true")
+    .csv("abfss://landing@stlakehousenyctx2.dfs.core.windows.net/taxi_zone_lookup.csv")
+    .withColumn("_source_file", F.lit("taxi_zone_lookup.csv"))
+    .withColumn("_ingested_at", F.current_timestamp()))
+
+# normalize column names to snake_case
+for c in zones.columns:
+    if not c.startswith("_"):
+        zones = zones.withColumnRenamed(c, c.lower())
+
+(zones.write.format("delta").mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable("nyctaxi.bronze.bronze_taxi_zones"))
+
+print(f"rows: {zones.count()}")
+zones.show(5, truncate=False)
+zones.printSchema()
