@@ -1,0 +1,98 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Date dimension. Range derived from silver_trips, not hardcoded."
+    columns:
+      - name: date_key
+        description: "YYYYMMDD integer surrogate key"
+        tests:
+          - unique
+          - not_null
+      - name: full_date
+        tests:
+          - not_null
+      - name: is_weekend
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: dim_location
+    description: "NYC TLC taxi zones, plus an Unknown member (-1) for unmatched IDs."
+    columns:
+      - name: location_key
+        tests:
+          - unique
+          - not_null
+      - name: borough
+        tests:
+          - not_null
+      - name: zone_name
+        tests:
+          - not_null
+
+  - name: dim_vendor
+    description: "Vendors present in the data, named from the TLC data dictionary."
+    columns:
+      - name: vendor_key
+        tests:
+          - unique
+          - not_null
+      - name: vendor_name
+        tests:
+          - not_null
+
+  - name: fct_trips
+    description: "One row per trip. Reversals retained and flagged, not filtered."
+    columns:
+      - name: pickup_date_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+      - name: pu_location_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+
+      - name: do_location_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+
+      - name: vendor_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor')
+                field: vendor_key
+
+      - name: service_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['yellow', 'green']
+
+      - name: total_amount
+        tests:
+          - not_null
+
+      - name: trip_distance
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false

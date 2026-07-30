@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: silver
+    catalog: nyctaxi
+    schema: silver
+    tables:
+      - name: silver_trips
+      - name: silver_trips_quarantine
+
+  - name: bronze
+    catalog: nyctaxi
+    schema: bronze
+    tables:
+      - name: bronze_taxi_zones
