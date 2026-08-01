@@ -116,6 +116,7 @@ print(f"GREEN corrected key: {t - green.select(*green_dup_cols_v2).distinct().co
 # COMMAND ----------
 
 from pyspark.sql import functions as F
+from pyspark.sql.functions import regexp_extract, to_date, add_months
 
 # ---- helper: normalize any remaining mixed-case column names -------------
 
@@ -156,17 +157,49 @@ g = lower_cols(g)
 # Column ORDER differs between the two sources. A positional union() would
 # silently misalign values. unionByName matches on name instead.
 
-trips = y.unionByName(g, allowMissingColumns=True)
+from pyspark.sql.functions import get_json_object, coalesce
 
-# ---- 3. Validate ---------------------------------------------------------
+def from_rescue(field, cast_to):
+    return get_json_object(F.col("_rescued_data"), f"$.{field}").cast(cast_to)
+
+trips = (trips
+    .withColumn("vendor_id",       coalesce(F.col("vendor_id"),       from_rescue("VendorID", "long")))
+    .withColumn("passenger_count", coalesce(F.col("passenger_count"), from_rescue("passenger_count", "double")))
+    .withColumn("ratecode_id",     coalesce(F.col("ratecode_id"),     from_rescue("RatecodeID", "double")))
+    .withColumn("pu_location_id",  coalesce(F.col("pu_location_id"),  from_rescue("PULocationID", "long")))
+    .withColumn("do_location_id",  coalesce(F.col("do_location_id"),  from_rescue("DOLocationID", "long")))
+    .withColumn("payment_type",    coalesce(F.col("payment_type"),    from_rescue("payment_type", "long")))
+    .withColumn("airport_fee",     coalesce(F.col("airport_fee"),
+                                            from_rescue("Airport_fee", "double"),
+                                            from_rescue("airport_fee", "double")))
+    .withColumn("ehail_fee",       coalesce(F.col("ehail_fee"),       from_rescue("ehail_fee", "double")))
+    .withColumn("trip_type",       coalesce(F.col("trip_type"),       from_rescue("trip_type", "double")))
+)
+
+# ---- 3. Derive the valid period from each row's own source file ----------
+# Earlier this rule hardcoded January 2023, which quarantined 16.4M rows
+# (97% of all quarantined) the moment Feb-Jun data arrived. Deriving the
+# window from the _source_file lineage column scales to any number of months
+# with no edits. Same class of trap as a hardcoded dim_date range.
+#   "yellow_tripdata_2023-04.parquet" -> 2023-04-01
+#   valid window: [2023-04-01, 2023-05-01)
+
+trips = trips.withColumn(
+    "_file_period",
+    to_date(regexp_extract(F.col("_source_file"), r"(\d{4}-\d{2})", 1), "yyyy-MM")
+)
+
+# ---- 4. Validate ---------------------------------------------------------
 # when().when() chain records WHICH rule failed, not just that one did.
+# First match wins, so counts show the PRIMARY failure reason.
 
 fatal = (
       F.when(F.col("fare_amount") < 0, "negative_fare")
        .when(F.col("trip_distance") <= 0, "zero_or_negative_distance")
        .when(F.col("dropoff_datetime") <= F.col("pickup_datetime"), "dropoff_before_pickup")
-       .when((F.col("pickup_datetime") < "2023-01-01") |
-             (F.col("pickup_datetime") >= "2023-02-01"), "pickup_outside_period")
+       .when((F.col("pickup_datetime") < F.col("_file_period")) |
+             (F.col("pickup_datetime") >= add_months(F.col("_file_period"), 1)),
+             "pickup_outside_file_period")
 )
 
 trips = (trips
@@ -180,6 +213,11 @@ quarantine = trips.filter(F.col("_quarantine_reason").isNotNull())
 print(f"clean:      {clean.count():,}")
 print(f"quarantine: {quarantine.count():,}")
 print(f"columns:    {len(clean.columns)}")
+
+# COMMAND ----------
+
+(quarantine.groupBy("_quarantine_reason")
+    .count().orderBy(F.desc("count")).show(truncate=False))
 
 # COMMAND ----------
 
@@ -253,3 +291,50 @@ quar_by_reason.withColumn("measured_at", F.current_timestamp()) \
     .saveAsTable("nyctaxi.silver.silver_quality_by_reason")
 
 metrics.show(truncate=False)
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT date_format(pickup_datetime, 'yyyy-MM') AS month,
+# MAGIC        service_type,
+# MAGIC        COUNT(*) AS trips,
+# MAGIC        SUM(CAST(passenger_count_missing AS INT)) AS missing,
+# MAGIC        ROUND(SUM(CAST(passenger_count_missing AS INT)) / COUNT(*) * 100, 1) AS pct_missing
+# MAGIC FROM nyctaxi.silver.silver_trips
+# MAGIC GROUP BY 1, 2 ORDER BY 1, 2;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT COUNT(*) FROM nyctaxi.bronze.bronze_yellow_trips
+# MAGIC WHERE _rescued_data IS NOT NULL;
+
+# COMMAND ----------
+
+from pyspark.sql import functions as F
+(spark.table("nyctaxi.bronze.bronze_yellow_trips")
+    .filter(F.col("_rescued_data").isNotNull())
+    .select("_source_file", "_rescued_data")
+    .limit(3).show(truncate=False))
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT _source_file, COUNT(*) AS rows,
+# MAGIC        SUM(CASE WHEN _rescued_data IS NOT NULL THEN 1 ELSE 0 END) AS rescued
+# MAGIC FROM nyctaxi.bronze.bronze_yellow_trips
+# MAGIC GROUP BY _source_file ORDER BY _source_file;
+
+# COMMAND ----------
+
+for m in ["01", "05"]:
+    p = f"abfss://landing@stlakehousenyctx2.dfs.core.windows.net/yellow_tripdata_2023-{m}.parquet"
+    print(f"\n=== 2023-{m} ===")
+    spark.read.parquet(p).printSchema()
+
+# COMMAND ----------
+
+for m in ["01", "05"]:
+    p = f"abfss://landing@stlakehousenyctx2.dfs.core.windows.net/green_tripdata_2023-{m}.parquet"
+    print(f"\n=== green 2023-{m} ===")
+    spark.read.parquet(p).printSchema()
