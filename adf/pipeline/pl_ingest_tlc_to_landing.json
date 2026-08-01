@@ -1,0 +1,172 @@
+{
+	"name": "pl_ingest_tlc_to_landing",
+	"properties": {
+		"activities": [
+			{
+				"name": "foreach_file",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.files_to_load",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "copy_tlc_file",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "ParquetSource",
+									"storeSettings": {
+										"type": "HttpReadSettings",
+										"requestMethod": "GET"
+									},
+									"formatSettings": {
+										"type": "ParquetReadSettings"
+									}
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_http_tlc_parquet",
+									"type": "DatasetReference",
+									"parameters": {
+										"service_type": {
+											"value": "@item().service_type",
+											"type": "Expression"
+										},
+										"year": {
+											"value": "@item().year",
+											"type": "Expression"
+										},
+										"month": {
+											"value": "@item().month",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_adls_landing_parquet",
+									"type": "DatasetReference",
+									"parameters": {
+										"service_type": {
+											"value": "@item().service_type",
+											"type": "Expression"
+										},
+										"year": {
+											"value": "@item().year",
+											"type": "Expression"
+										},
+										"month": {
+											"value": "@item().month",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"year": {
+				"type": "string",
+				"defaultValue": "2023"
+			},
+			"month": {
+				"type": "string",
+				"defaultValue": "02"
+			},
+			"service_type": {
+				"type": "string",
+				"defaultValue": "yellow"
+			},
+			"files_to_load": {
+				"type": "array",
+				"defaultValue": [
+					{
+						"service_type": "yellow",
+						"year": "2023",
+						"month": "03"
+					},
+					{
+						"service_type": "yellow",
+						"year": "2023",
+						"month": "04"
+					},
+					{
+						"service_type": "yellow",
+						"year": "2023",
+						"month": "05"
+					},
+					{
+						"service_type": "yellow",
+						"year": "2023",
+						"month": "06"
+					},
+					{
+						"service_type": "green",
+						"year": "2023",
+						"month": "02"
+					},
+					{
+						"service_type": "green",
+						"year": "2023",
+						"month": "03"
+					},
+					{
+						"service_type": "green",
+						"year": "2023",
+						"month": "04"
+					},
+					{
+						"service_type": "green",
+						"year": "2023",
+						"month": "05"
+					},
+					{
+						"service_type": "green",
+						"year": "2023",
+						"month": "06"
+					}
+				]
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-07-31T21:05:13Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
