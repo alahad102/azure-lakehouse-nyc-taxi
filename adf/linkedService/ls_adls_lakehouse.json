@@ -1,0 +1,11 @@
+{
+	"name": "ls_adls_lakehouse",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://stlakehousenyctx2.dfs.core.windows.net/"
+		}
+	}
+}

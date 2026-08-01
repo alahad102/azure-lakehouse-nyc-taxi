@@ -1,0 +1,15 @@
+{
+	"name": "adf-lakehouse-nyctaxi",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "southcentralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "c25fff7a-71e3-4e5f-a55c-c18f5a41694e",
+		"tenantId": "9fb281af-674b-46ea-ae09-04db96847475"
+	}
+}
