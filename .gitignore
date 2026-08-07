@@ -27,3 +27,7 @@ dbt/logs/
 dbt/**/logs/
 dbt/**/target/
 dbt/**/dbt_packages/
+
+
+# dbt seeds are configuration, not data — track them despite the *.csv rule above
+!dbt/nyctaxi_gold/seeds/*.csv
