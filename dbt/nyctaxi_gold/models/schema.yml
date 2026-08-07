@@ -71,12 +71,26 @@ models:
                 field: location_key
 
       - name: vendor_key
+        description: Natural key. Points to the static dim_vendor.
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_vendor')
                 field: vendor_key
+
+      - name: vendor_version_key
+        description: >
+          Surrogate key resolved by point-in-time join to dim_vendor_scd2.
+          Identifies which vendor contract version was in effect at pickup time.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor_scd2')
+                field: vendor_sk
+
+      - name: service_type
 
       - name: service_type
         tests:
