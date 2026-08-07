@@ -1,0 +1,7 @@
+snapshots:
+  - name: snap_vendor_master
+    relation: ref('vendor_master')
+    config:
+      unique_key: vendor_id
+      strategy: timestamp
+      updated_at: updated_at

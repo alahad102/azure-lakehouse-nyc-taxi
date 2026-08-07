@@ -17,3 +17,12 @@ models:
   nyctaxi_gold:
     +materialized: table
     +file_format: delta
+
+seeds:
+  nyctaxi_gold:
+    vendor_master:
+      +column_types:
+        vendor_id: int
+        vendor_name: string
+        contract_tier: string
+        updated_at: timestamp

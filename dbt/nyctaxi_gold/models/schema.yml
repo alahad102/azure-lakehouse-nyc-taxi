@@ -71,12 +71,26 @@ models:
                 field: location_key
 
       - name: vendor_key
+        description: Natural key. Points to the static dim_vendor.
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_vendor')
                 field: vendor_key
+
+      - name: vendor_version_key
+        description: >
+          Surrogate key resolved by point-in-time join to dim_vendor_scd2.
+          Identifies which vendor contract version was in effect at pickup time.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor_scd2')
+                field: vendor_sk
+
+      - name: service_type
 
       - name: service_type
         tests:
@@ -96,3 +110,35 @@ models:
               arguments:
                 min_value: 0
                 inclusive: false
+
+
+
+  - name: dim_vendor_scd2
+    description: >
+      SCD Type 2 vendor dimension. One row per vendor per contract-tier version.
+      Tier changes were engineered (see seeds/vendor_master.csv commit history);
+      TLC source data contains no slowly-changing vendor attribute.
+    columns:
+      - name: vendor_sk
+        description: Surrogate key, unique per version (not per vendor).
+        tests:
+          - unique
+          - not_null
+      - name: vendor_id
+        description: Natural key. Deliberately NOT unique — repeats across versions.
+        tests:
+          - not_null
+      - name: contract_tier
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Standard', 'Premium']
+      - name: effective_start_date
+        tests:
+          - not_null
+      - name: effective_end_date
+        tests:
+          - not_null
+      - name: is_current
+        tests:
+          - not_null
