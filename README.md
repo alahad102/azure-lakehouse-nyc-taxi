@@ -286,11 +286,12 @@ Running on Pay-As-You-Go, not a sponsored subscription — cost is a real constr
 | 8 · Orchestration (Lakeflow Jobs) | ⬜ |
 | 9 · Unity Catalog governance + column masking | ⬜ |
 | 10 · CI/CD (GitHub Actions, two-tier) | ⬜ |
-| 11 · Optimization experiment (Z-ORDER, before/after) | ⬜ |
+| 11 · Optimization experiment (Z-ORDER, before/after) | ✅ measured — [see write-up](docs/optimization_experiment.md) |
 | 12 · Power BI dashboard | ⬜ |
 | 13 · Architecture diagram, screenshots, demo | ⬜ |
 
 **Known gaps:** `silver_trips_quarantine` is an orphan node in the dbt DAG — a `fct_data_quality` model would close it. Key Vault is provisioned but not yet wired into Databricks secret scopes. The ADF pipeline runs on demand; no scheduled trigger yet.
+Z-ORDER on `fct_trips` does not survive a rebuild — `CREATE OR REPLACE TABLE` writes files in query-emission order, discarding the clustering, so OPTIMIZE must run as a task after the dbt tasks in the orchestrated job.
 
 ---
 
